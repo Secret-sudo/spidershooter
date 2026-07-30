@@ -39,6 +39,9 @@
   #hudTL { top:calc(10px + env(safe-area-inset-top)); left:calc(10px + env(safe-area-inset-left)); }
   #hudTR { top:calc(10px + env(safe-area-inset-top)); right:calc(10px + env(safe-area-inset-right)); text-align:right; }
   #hudLevel { color:#C9D2F0; margin-bottom:6px; white-space:nowrap; }
+  /* Bau-Kennung: macht von aussen erkennbar, welche Fassung wirklich läuft
+     (Browser liefern sonst still eine alte Version aus dem Zwischenspeicher). */
+  #hudBuild { color:#5A6489; font-size:8px; letter-spacing:0.2em; margin-top:5px; }
   #hudHP { display:flex; gap:3px; margin-bottom:5px; }
   #hudHP span { width:16px; height:8px; background:#2A3358; }
   #hudHP span.on { background:#D97757; }
@@ -167,6 +170,7 @@
     <div id="hudHP"><span></span><span></span><span></span><span></span><span></span></div>
     <div id="hudStam"><div id="stamFill"></div></div>
     <div id="sprintHint">denkt schneller</div>
+    <div id="hudBuild">BAU 2 — RING-STEUERUNG</div>
   </div>
   <div class="hudbox" id="hudTR">
     <div id="hudEnemies">DENKFEHLER: 0</div>
@@ -248,6 +252,7 @@
     und netzt die Denkfehler ein, die sich in der Maschine eingenistet haben.</p>
     <button class="btn" id="startBtn">Beine ausfahren</button>
     <div class="hint" id="ctrlHint"></div>
+    <div class="hint" style="opacity:0.55;margin-top:8px">Bau 2 — Ring-Steuerung</div>
   </div>
 </div>
 
