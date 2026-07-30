@@ -170,7 +170,7 @@
     <div id="hudHP"><span></span><span></span><span></span><span></span><span></span></div>
     <div id="hudStam"><div id="stamFill"></div></div>
     <div id="sprintHint">denkt schneller</div>
-    <div id="hudBuild">BAU 2 — RING-STEUERUNG</div>
+    <div id="hudBuild">BAU 3 — RING AM CANVAS</div>
   </div>
   <div class="hudbox" id="hudTR">
     <div id="hudEnemies">DENKFEHLER: 0</div>
@@ -252,7 +252,7 @@
     und netzt die Denkfehler ein, die sich in der Maschine eingenistet haben.</p>
     <button class="btn" id="startBtn">Beine ausfahren</button>
     <div class="hint" id="ctrlHint"></div>
-    <div class="hint" style="opacity:0.55;margin-top:8px">Bau 2 — Ring-Steuerung</div>
+    <div class="hint" style="opacity:0.55;margin-top:8px">Bau 3 — Ring am Canvas</div>
   </div>
 </div>
 
@@ -433,7 +433,12 @@ const canvas = $('game');
 const ctx = canvas.getContext('2d', { alpha:false });
 let W = 320, H = 180;                 // interne Auflösung
 function resize(){
-  const cw = innerWidth, ch = innerHeight;
+  /* Masse aus dem Canvas selbst, nicht aus innerWidth/innerHeight: In
+     eingebetteten Seiten und auf Handys mit ein- und ausfahrender Adressleiste
+     beschreiben die Fenstermasse nicht die tatsächlich sichtbare Fläche. */
+  const r = canvas.getBoundingClientRect();
+  const cw = Math.max(1, Math.round(r.width)  || innerWidth);
+  const ch = Math.max(1, Math.round(r.height) || innerHeight);
   W = Math.min(CONFIG.maxColumns, Math.max(160, Math.floor(cw / CONFIG.renderScale)));
   H = Math.max(120, Math.floor(W * ch / cw));
   canvas.width = W; canvas.height = H;
@@ -700,13 +705,26 @@ function joyRelease(){
   $('joyBase').classList.remove('active');
   const k=$('joyKnob'); k.style.left=JOY.cx+'px'; k.style.top=JOY.cy+'px';
 }
-function joyZone(t){   // grosszügig: linke Hälfte, untere zwei Drittel
-  return t.clientX < innerWidth*0.5 && t.clientY > innerHeight*0.34;
+/* Gehört diese Berührung zum Joystick? Gemessen am tatsächlich gezeichneten
+   Ring, nicht an Fenstermassen — die sind auf echten Geräten unzuverlässig.
+   Zusätzlich als Auffangnetz die linke untere Hälfte der Szene, falls der Ring
+   (aus welchem Grund auch immer) keine brauchbaren Masse liefert. */
+function joyZone(t){
+  if(Math.hypot(t.clientX-JOY.cx, t.clientY-JOY.cy) < JOY.r*2.4) return true;
+  const r = canvas.getBoundingClientRect();
+  return t.clientX < r.left + r.width*0.5 && t.clientY > r.top + r.height*0.45;
 }
 function showTouchUI(){
+  isTouch = true;
   $('touchUI').style.display='block';
   for(const id of ['joyBase','joyLabel','joyKnob']) $(id).style.display='block';
   joyGeometry(); joyRelease();
+}
+/* Auf Zeigegeräten ohne Maus die Touch-Oberfläche sofort einschalten, damit der
+   Ring von Anfang an sichtbar ist und nicht erst nach der ersten Berührung. */
+if(navigator.maxTouchPoints > 0 && matchMedia('(pointer: coarse)').matches){
+  addEventListener('load', showTouchUI);
+  showTouchUI();
 }
 /* Verlorene Berührungen freigeben. Ohne das könnte ein vom Betriebssystem
    abgefangener Finger den Joystick dauerhaft blockieren: belegt, aber ohne
@@ -730,7 +748,8 @@ addEventListener('touchstart', e=>{
   if(G.state!=='play') return;
   if(e.target && e.target.id==='muteBtn') return;   // Ton-Knopf braucht den Klick
   e.preventDefault();
-  reconcileTouches(e);
+  joyGeometry();          // bei jeder Berührung frisch messen: Adressleiste,
+  reconcileTouches(e);    // Drehung und Rahmengrösse verschieben den Ring
   for(const t of e.changedTouches){
     if(inBtn($('btnNet'), t) && touchState.netId<0){
       touchState.netId=t.identifier; touchState.netDownT=performance.now();
@@ -1714,7 +1733,8 @@ initIntro();
 requestAnimationFrame(frame);
 
 /* Kleine Konsolen-API für Tests und Tuning (kein Spielinhalt) */
-window.DENKSPINNE = { G, CONFIG, touchState, loadLevel, openMapScreen, victory, gameOver, killEnemy, restart };
+window.DENKSPINNE = { G, CONFIG, touchState, AudioSys, JOY, loadLevel, openMapScreen,
+  victory, gameOver, killEnemy, restart, damagePlayer };
 
 })();
 </script>
