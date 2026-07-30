@@ -7,9 +7,21 @@ Inneren der Maschine eingenistet haben.
 
 ## Spielen
 
-`denkspinne.html` herunterladen und per Doppelklick im Browser öffnen —
+Im Browser: **https://secret-sudo.github.io/spidershooter/**
+
+Oder `denkspinne.html` herunterladen und per Doppelklick öffnen —
 kein Server, kein Build, keine Abhängigkeiten. Läuft auf Desktop und
 Smartphone (Touch-Steuerung erscheint automatisch).
+
+> GitHub zeigt `.html`-Dateien in der Datei-Ansicht immer als Quelltext an.
+> Zum Spielen die Adresse oben verwenden, nicht die Datei-Ansicht.
+
+### GitHub Pages einrichten (einmalig)
+
+Pages lässt sich nur in den Repository-Einstellungen aktivieren:
+**Settings → Pages → Source: «Deploy from a branch» → Branch: `main`, Ordner: `/ (root)` → Save**.
+Nach etwa einer Minute ist die Adresse oben erreichbar; `index.html`
+leitet dort direkt auf das Spiel weiter.
 
 **Desktop:** WASD laufen · Maus schauen (Klick aktiviert Pointer Lock) ·
 Klick/Leertaste: Netz schiessen · halten: Fangnetz · Shift: hetzen · Esc: Pause
