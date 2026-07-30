@@ -108,7 +108,8 @@ Vier Ebenen, jede als Array von Zeichenketten. `#` Wand, `.` Boden, `E` Ausgang,
 - Leertaste schiesst (halten für Fangnetz), Shift sprintet, Escape pausiert und gibt den Lock frei.
 
 **Touch**
-- Linke Bildschirmhälfte: virtueller Joystick mit sichtbarem Ring und Knauf, analog in acht Richtungen.
+- Unten links ein **fest verankerter, dauerhaft sichtbarer Joystick**: Ring mit Knauf und Beschriftung, analog in acht Richtungen. Wichtig: Die Richtung ergibt sich aus der Berührungsstelle relativ zur Ringmitte und gilt **schon beim Aufsetzen des Daumens**, nicht erst nach einer Ziehbewegung. Ein Joystick, der erst auf `touchmove` reagiert, ist auf iOS unbrauchbar — dort beansprucht das Betriebssystem Wischbewegungen am unteren Rand für eigene Gesten, die Ereignisse werden nicht mehr abbrechbar, und Laufen fällt komplett aus, während Schauen weiter funktioniert.
+- Verlorene Berührungen müssen bei jedem Touch-Ereignis gegen `event.touches` abgeglichen und freigegeben werden. Sonst blockiert ein vom System abgefangener Finger den Joystick dauerhaft: belegt, aber ohne Richtung.
 - Rechte Bildschirmhälfte: Wischen dreht die Blickrichtung und kippt den Pitch.
 - Runder Netz-Knopf unten rechts (kurz tippen: Schuss, lang drücken: Fangnetz), Sprint-Knopf darüber. Beide mit sichtbarem Druckzustand.
 - Multitouch muss sauber funktionieren: laufen, schauen und schiessen gleichzeitig. Touch-IDs einzeln verfolgen, `touch-action: none`, kein Doppeltipp-Zoom, `env(safe-area-inset-*)` respektieren.

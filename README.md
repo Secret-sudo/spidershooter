@@ -26,7 +26,8 @@ leitet dort direkt auf das Spiel weiter.
 **Desktop:** WASD laufen · Maus schauen (Klick aktiviert Pointer Lock) ·
 Klick/Leertaste: Netz schiessen · halten: Fangnetz · Shift: hetzen · Esc: Pause
 
-**Touch:** linke Hälfte: Joystick · rechte Hälfte: schauen ·
+**Touch:** Daumen in den sichtbaren Ring unten links: laufen (die Richtung gilt
+sofort beim Aufsetzen, Ziehen ist nicht nötig) · rechts wischen: schauen ·
 NETZ tippen: Schuss, halten: Fangnetz · HETZEN: Sprint
 
 ## Inhalt

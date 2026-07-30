@@ -26,7 +26,7 @@
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   html, body { width:100%; height:100%; overflow:hidden; background:#080A11; touch-action:none;
-    -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
+    overscroll-behavior:none; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
   body { font-family:'IBM Plex Mono', monospace; color:#C9D2F0; }
 
   #game { position:fixed; inset:0; width:100%; height:100%;
@@ -60,10 +60,20 @@
 
   /* ---------- Touch-Steuerung ---------- */
   #touchUI { position:fixed; inset:0; z-index:30; pointer-events:none; display:none; }
-  #joyRing { position:absolute; width:110px; height:110px; border:2px solid rgba(111,231,210,0.5);
-    border-radius:50%; transform:translate(-50%,-50%); display:none; }
-  #joyKnob { position:absolute; width:44px; height:44px; background:rgba(111,231,210,0.35);
-    border:2px solid rgba(111,231,210,0.8); border-radius:50%; transform:translate(-50%,-50%); display:none; }
+  /* Fest verankerter Joystick: immer sichtbar, damit klar ist, wo der Daumen
+     hingehört. Die Richtung ergibt sich aus der Berührungsstelle relativ zur
+     Ringmitte — schon beim Aufsetzen, ohne Ziehen. */
+  #joyBase { position:absolute; left:calc(18px + env(safe-area-inset-left));
+    bottom:calc(38px + env(safe-area-inset-bottom)); width:136px; height:136px;
+    border-radius:50%; border:2px solid rgba(111,231,210,0.30);
+    background:rgba(111,231,210,0.06); display:none; }
+  #joyBase.active { border-color:rgba(111,231,210,0.7); background:rgba(111,231,210,0.13); }
+  #joyLabel { position:absolute; left:calc(18px + env(safe-area-inset-left));
+    bottom:calc(16px + env(safe-area-inset-bottom)); width:136px; text-align:center;
+    font-size:9px; letter-spacing:0.2em; color:rgba(111,231,210,0.55); display:none; }
+  #joyKnob { position:absolute; width:52px; height:52px; background:rgba(111,231,210,0.35);
+    border:2px solid rgba(111,231,210,0.85); border-radius:50%;
+    transform:translate(-50%,-50%); display:none; }
   .tbtn { position:absolute; right:calc(18px + env(safe-area-inset-right)); width:74px; height:74px;
     border-radius:50%; border:2px solid rgba(217,119,87,0.75); background:rgba(217,119,87,0.18);
     color:#D97757; font-family:'IBM Plex Mono', monospace; font-size:10px; letter-spacing:0.1em;
@@ -169,7 +179,8 @@
 <div id="lockHint">Klick in die Szene: Maus übernimmt den Blick</div>
 
 <div id="touchUI">
-  <div id="joyRing"></div>
+  <div id="joyBase"></div>
+  <div id="joyLabel">LAUFEN</div>
   <div id="joyKnob"></div>
   <div class="tbtn" id="btnSprint">HETZEN</div>
   <div class="tbtn" id="btnNet">NETZ</div>
@@ -654,18 +665,67 @@ document.addEventListener('pointerlockchange', ()=>{
 });
 document.addEventListener('pointerlockerror', ()=>{ pointerLocked=false; });
 
-/* Touch: Joystick links, Blick rechts, Knöpfe */
+/* Touch: fester Joystick links, Blick rechts, Knöpfe rechts unten */
 let isTouch=false;
-const touchState = { joyId:-1, joyOx:0, joyOy:0, joyDx:0, joyDy:0,
+const touchState = { joyId:-1, joyDx:0, joyDy:0,
   lookId:-1, lookLast:[0,0], netId:-1, sprintId:-1, netDownT:0 };
+const JOY = { cx:0, cy:0, r:1 };
+
 function inBtn(el, t){ const r=el.getBoundingClientRect();
   return t.clientX>=r.left-12 && t.clientX<=r.right+12 && t.clientY>=r.top-12 && t.clientY<=r.bottom+12; }
+
+function joyGeometry(){
+  const r=$('joyBase').getBoundingClientRect();
+  JOY.cx=r.left+r.width/2; JOY.cy=r.top+r.height/2; JOY.r=Math.max(1,r.width/2);
+}
+/* Richtung aus der Berührungsstelle relativ zur Ringmitte — gilt schon beim
+   Aufsetzen. Dadurch läuft die Spinne auch dann, wenn das Betriebssystem die
+   nachfolgende Wischbewegung für eine eigene Geste beansprucht. */
+function joySet(t){
+  let dx=(t.clientX-JOY.cx)/JOY.r, dy=(t.clientY-JOY.cy)/JOY.r;
+  const m=Math.hypot(dx,dy);
+  if(m>1){ dx/=m; dy/=m; }
+  touchState.joyDx=dx; touchState.joyDy=dy;
+  const k=$('joyKnob');
+  k.style.left=(JOY.cx+dx*JOY.r)+'px';
+  k.style.top =(JOY.cy+dy*JOY.r)+'px';
+}
+function joyRelease(){
+  touchState.joyId=-1; touchState.joyDx=0; touchState.joyDy=0;
+  $('joyBase').classList.remove('active');
+  const k=$('joyKnob'); k.style.left=JOY.cx+'px'; k.style.top=JOY.cy+'px';
+}
+function joyZone(t){   // grosszügig: linke Hälfte, untere zwei Drittel
+  return t.clientX < innerWidth*0.5 && t.clientY > innerHeight*0.34;
+}
+function showTouchUI(){
+  $('touchUI').style.display='block';
+  for(const id of ['joyBase','joyLabel','joyKnob']) $(id).style.display='block';
+  joyGeometry(); joyRelease();
+}
+/* Verlorene Berührungen freigeben. Ohne das könnte ein vom Betriebssystem
+   abgefangener Finger den Joystick dauerhaft blockieren: belegt, aber ohne
+   Richtung — laufen ginge dann nicht mehr, schauen schon. */
+function reconcileTouches(e){
+  const live=new Set();
+  for(const t of e.touches) live.add(t.identifier);
+  if(touchState.joyId>=0 && !live.has(touchState.joyId)) joyRelease();
+  if(touchState.lookId>=0 && !live.has(touchState.lookId)) touchState.lookId=-1;
+  if(touchState.netId>=0 && !live.has(touchState.netId)){
+    touchState.netId=-1; $('btnNet').classList.remove('pressed');
+  }
+  if(touchState.sprintId>=0 && !live.has(touchState.sprintId)){
+    touchState.sprintId=-1; $('btnSprint').classList.remove('pressed');
+  }
+}
+
 addEventListener('touchstart', e=>{
-  isTouch=true; $('touchUI').style.display='block';
+  if(!isTouch){ isTouch=true; showTouchUI(); }
   AudioSys.init(); AudioSys.resume();
   if(G.state!=='play') return;
   if(e.target && e.target.id==='muteBtn') return;   // Ton-Knopf braucht den Klick
   e.preventDefault();
+  reconcileTouches(e);
   for(const t of e.changedTouches){
     if(inBtn($('btnNet'), t) && touchState.netId<0){
       touchState.netId=t.identifier; touchState.netDownT=performance.now();
@@ -674,30 +734,22 @@ addEventListener('touchstart', e=>{
     if(inBtn($('btnSprint'), t) && touchState.sprintId<0){
       touchState.sprintId=t.identifier; $('btnSprint').classList.add('pressed'); continue;
     }
-    if(t.clientX < innerWidth/2 && touchState.joyId<0){
-      touchState.joyId=t.identifier; touchState.joyOx=t.clientX; touchState.joyOy=t.clientY;
-      touchState.joyDx=0; touchState.joyDy=0;
-      const ring=$('joyRing'), knob=$('joyKnob');
-      ring.style.left=knob.style.left=t.clientX+'px';
-      ring.style.top=knob.style.top=t.clientY+'px';
-      ring.style.display=knob.style.display='block';
+    if(joyZone(t) && touchState.joyId<0){
+      touchState.joyId=t.identifier;
+      $('joyBase').classList.add('active');
+      joySet(t);
     } else if(touchState.lookId<0){
       touchState.lookId=t.identifier; touchState.lookLast=[t.clientX,t.clientY];
     }
   }
 }, {passive:false});
+
 addEventListener('touchmove', e=>{
   if(G.state!=='play'){ return; }
   e.preventDefault();
+  reconcileTouches(e);
   for(const t of e.changedTouches){
-    if(t.identifier===touchState.joyId){
-      let dx=t.clientX-touchState.joyOx, dy=t.clientY-touchState.joyOy;
-      const m=Math.hypot(dx,dy), R=48;
-      if(m>R){ dx*=R/m; dy*=R/m; }
-      touchState.joyDx=dx/R; touchState.joyDy=dy/R;
-      $('joyKnob').style.left=(touchState.joyOx+dx)+'px';
-      $('joyKnob').style.top=(touchState.joyOy+dy)+'px';
-    }
+    if(t.identifier===touchState.joyId) joySet(t);
     if(t.identifier===touchState.lookId){
       const p=G.player;
       p.a += (t.clientX-touchState.lookLast[0])*CONFIG.touchLookSens;
@@ -706,13 +758,9 @@ addEventListener('touchmove', e=>{
     }
   }
 }, {passive:false});
+
 function touchEnd(e){
   for(const t of e.changedTouches){
-    if(t.identifier===touchState.joyId){
-      touchState.joyId=-1; touchState.joyDx=0; touchState.joyDy=0;
-      $('joyRing').style.display=$('joyKnob').style.display='none';
-    }
-    if(t.identifier===touchState.lookId) touchState.lookId=-1;
     if(t.identifier===touchState.netId){
       touchState.netId=-1; $('btnNet').classList.remove('pressed');
       if(G.state==='play') releaseCharge();
@@ -720,10 +768,16 @@ function touchEnd(e){
     if(t.identifier===touchState.sprintId){
       touchState.sprintId=-1; $('btnSprint').classList.remove('pressed');
     }
+    if(t.identifier===touchState.joyId) joyRelease();
+    if(t.identifier===touchState.lookId) touchState.lookId=-1;
   }
+  reconcileTouches(e);
 }
 addEventListener('touchend', touchEnd, {passive:false});
 addEventListener('touchcancel', touchEnd, {passive:false});
+const refreshJoy = ()=>{ if(isTouch){ joyGeometry(); joyRelease(); } };
+addEventListener('resize', refreshJoy);
+addEventListener('orientationchange', ()=>setTimeout(refreshJoy, 250));
 
 /* ---------- Schiessen ---------- */
 function startCharge(){ if(G.charge<0) G.charge=0; }
@@ -1548,7 +1602,7 @@ const intro = { spark:null, phase:'idle', t0:0, verbIdx:0, verbT:0 };
 function initIntro(){
   intro.spark = buildSpark($('sparkSlot'));
   $('ctrlHint').innerHTML = ('ontouchstart' in window)
-    ? 'Links: Laufen · Rechts: Schauen<br>NETZ tippen: Schuss · halten: Fangnetz'
+    ? 'Daumen in den linken Ring: Laufen · Rechts wischen: Schauen<br>NETZ tippen: Schuss · halten: Fangnetz'
     : 'WASD laufen · Maus schauen · Klick / Leertaste: Netz<br>halten: Fangnetz · Shift: hetzen · Esc: Pause';
   $('startBtn').addEventListener('click', startTransform);
 }
@@ -1655,7 +1709,7 @@ initIntro();
 requestAnimationFrame(frame);
 
 /* Kleine Konsolen-API für Tests und Tuning (kein Spielinhalt) */
-window.DENKSPINNE = { G, CONFIG, loadLevel, openMapScreen, victory, gameOver, killEnemy, restart };
+window.DENKSPINNE = { G, CONFIG, touchState, loadLevel, openMapScreen, victory, gameOver, killEnemy, restart };
 
 })();
 </script>
