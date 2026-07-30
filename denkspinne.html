@@ -404,6 +404,14 @@ const lerp = (a,b,t) => a+(b-a)*t;
 const TAU = Math.PI*2;
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+/* Speicher für Rekord und Ton-Einstellung. Gekapselt, weil localStorage in
+   manchen Kontexten (file://, eingebettete Seiten) eine Ausnahme wirft —
+   ohne Kapselung würde das Spiel dort gar nicht starten. */
+const Store = {
+  get(key, fallback){ try { const v=localStorage.getItem(key); return v===null?fallback:v; } catch(e){ return fallback; } },
+  set(key, val){ try { localStorage.setItem(key, val); } catch(e){ /* kein Speicher, kein Problem */ } },
+};
+
 /* ---------- Canvas ---------- */
 const canvas = $('game');
 const ctx = canvas.getContext('2d', { alpha:false });
@@ -431,7 +439,7 @@ function shadeCss(rgb, f){ return `rgb(${(rgb[0]*f)|0},${(rgb[1]*f)|0},${(rgb[2]
 /* ---------- Audio (WebAudio, alles synthetisiert) ---------- */
 const AudioSys = {
   ctx:null, master:null, droneOsc:null, droneGain:null, droneFilter:null,
-  muted: localStorage.getItem('denkspinne.mute') === '1',
+  muted: Store.get('denkspinne.mute','0') === '1',
   init(){
     if(this.ctx) return;
     try {
@@ -443,7 +451,7 @@ const AudioSys = {
   },
   resume(){ if(this.ctx && this.ctx.state==='suspended') this.ctx.resume(); },
   setMute(m){
-    this.muted = m; localStorage.setItem('denkspinne.mute', m?'1':'0');
+    this.muted = m; Store.set('denkspinne.mute', m?'1':'0');
     if(this.master) this.master.gain.value = m ? 0 : 0.5;
   },
   env(gainNode, t0, a, peak, d){
@@ -506,7 +514,7 @@ const G = {
   player:{ x:2, y:2, a:0, pitch:0, hp:CONFIG.startHP, stam:CONFIG.staminaMax, invuln:0 },
   enemies:[], pickups:[], exit:{x:0,y:0},
   aliveCount:0, exitOpen:false,
-  score:0, high: parseInt(localStorage.getItem('denkspinne.high')||'0',10),
+  score:0, high: parseInt(Store.get('denkspinne.high','0'),10) || 0,
   totalTime:0, levelTime:0,
   shotsFired:0, shotsHit:0, tokensGot:0,
   cool:0, trapCool:0, charge:-1,   // charge<0: nicht am Laden
@@ -990,7 +998,7 @@ $('pauseRestart').addEventListener('click', ()=>{ $('pauseScreen').style.display
 document.addEventListener('visibilitychange', ()=>{ if(document.hidden && G.state==='play') togglePause(); });
 
 function saveHigh(){
-  if(G.score>G.high){ G.high=G.score; localStorage.setItem('denkspinne.high', String(G.high)); }
+  if(G.score>G.high){ G.high=G.score; Store.set('denkspinne.high', String(G.high)); }
 }
 function gameOver(){
   G.state='over'; saveHigh();
